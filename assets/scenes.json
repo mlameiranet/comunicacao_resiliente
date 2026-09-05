@@ -1,0 +1,35 @@
+[
+  {
+    "id": "1",
+    "title": "Bem-vindo ao Marajó Resiliente",
+    "content": "Este é um guia interativo para ajudar sua família a se preparar para as mudanças no clima. Vamos começar?",
+    "type": "textOnly"
+  },
+  {
+    "id": "2",
+    "title": "O que é o El Niño?",
+    "content": "O El Niño é o aquecimento das águas do Oceano Pacífico. Isso muda o regime de chuvas na nossa região, trazendo períodos de seca mais fortes.",
+    "type": "imageText",
+    "assetPath": "assets/images/el_nino_explainer.jpg"
+  },
+  {
+    "id": "3",
+    "title": "Dica de Resiliência",
+    "content": "Durante a seca, é fundamental armazenar água de forma segura e evitar queimadas perto das plantações.",
+    "type": "textOnly"
+  },
+  {
+    "id": "4",
+    "title": "Mensagem da Equipe",
+    "content": "Ouça esta breve orientação sobre o manejo da água em períodos críticos.",
+    "type": "audioText",
+    "assetPath": "assets/audio/orientacao_seca.mp3"
+  },
+  {
+    "id": "5",
+    "title": "Demonstração Prática",
+    "content": "Veja como é simples realizar a cobertura morta no solo para manter a umidade.",
+    "type": "videoText",
+    "assetPath": "assets/video/cobertura_solo.mp4"
+  }
+]

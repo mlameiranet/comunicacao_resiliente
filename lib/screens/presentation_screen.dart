@@ -1,0 +1,388 @@
+import 'package:flutter/material.dart';
+import 'dart:ui_web' as ui_web;
+import 'dart:html' as html;
+import '../models/scene_model.dart';
+import '../services/content_service.dart';
+import '../services/browser_service.dart';
+
+class PresentationScreen extends StatefulWidget {
+  const PresentationScreen({super.key});
+
+  @override
+  State<PresentationScreen> createState() => _PresentationScreenState();
+}
+
+class _PresentationScreenState extends State<PresentationScreen> {
+  final ContentService _contentService = ContentService();
+  final BrowserService _browserService = BrowserService();
+  List<SceneModel>? _scenes;
+  int _currentIndex = 0;
+  bool _isFinished = false;
+  bool _isAudioPlaying = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContent();
+  }
+
+  Future<void> _loadContent() async {
+    final scenes = await _contentService.getScenes();
+    setState(() {
+      _scenes = scenes;
+      _isLoading = false;
+    });
+  }
+
+  void _nextScene() {
+    _browserService.stopAudio();
+    setState(() => _isAudioPlaying = false);
+    
+    if (_scenes != null && _currentIndex < _scenes!.length - 1) {
+      setState(() {
+        _currentIndex++;
+      });
+    } else {
+      setState(() {
+        _isFinished = true;
+      });
+    }
+  }
+
+  void _previousScene() {
+    _browserService.stopAudio();
+    setState(() => _isAudioPlaying = false);
+    
+    if (_currentIndex > 0) {
+      setState(() {
+        _currentIndex--;
+        _isFinished = false;
+      });
+    }
+  }
+
+  void _toggleAudio(String? assetPath) {
+    if (assetPath == null) return;
+
+    if (_isAudioPlaying) {
+      _browserService.pauseAudio();
+      setState(() => _isAudioPlaying = false);
+    } else {
+      _browserService.playAudio(assetPath, onEnded: () {
+        setState(() => _isAudioPlaying = false);
+      });
+      setState(() => _isAudioPlaying = true);
+    }
+  }
+
+  void _onConcluir() {
+    _browserService.closeWindow();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_isFinished) {
+      return _buildFinishScreen();
+    }
+
+    final currentScene = _scenes![_currentIndex];
+    final progress = (_currentIndex + 1) / _scenes!.length;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: () => _browserService.toggleFullScreen(),
+            icon: const Icon(Icons.fullscreen, color: Colors.grey),
+          )
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Barra de Progresso Superior
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: Colors.grey[300],
+                  valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+                  minHeight: 6,
+                ),
+              ),
+            ),
+            
+            // Área de Conteúdo
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 400),
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.05, 0),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: SingleChildScrollView(
+                  key: ValueKey<int>(_currentIndex),
+                  padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 32.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        currentScene.title,
+                        style: Theme.of(context).textTheme.headlineLarge,
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        currentScene.content,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      const SizedBox(height: 40),
+                      
+                      // Placeholder ou Mídia Real
+                      if (currentScene.type != SceneType.textOnly)
+                        Container(
+                          width: double.infinity,
+                          height: 240,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                            border: Border.all(color: const Color(0xFFE0E0E0)),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: _buildMediaContent(currentScene),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            
+            // Controles Inferiores
+            Container(
+              padding: const EdgeInsets.all(24.0),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Botão Voltar
+                  IconButton(
+                    onPressed: _currentIndex > 0 ? _previousScene : null,
+                    icon: const Icon(Icons.arrow_back_ios_new),
+                    color: Theme.of(context).primaryColor,
+                    iconSize: 28,
+                  ),
+                  
+                  // Indicador Numérico
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_currentIndex + 1} / ${_scenes!.length}',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54),
+                    ),
+                  ),
+                  
+                  // Botão Próximo ou Finalizar
+                  ElevatedButton(
+                    onPressed: _currentIndex == _scenes!.length - 1 ? _onConcluir : _nextScene,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      _currentIndex == _scenes!.length - 1 ? 'Concluir' : 'Próximo',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFinishScreen() {
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.check_circle_outline, size: 100, color: Color(0xFF2D5A27)),
+              const SizedBox(height: 24),
+              Text(
+                'Tudo pronto!',
+                style: Theme.of(context).textTheme.headlineLarge,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Você concluiu esta etapa da nossa comunicação. Clique no botão abaixo para retornar.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, color: Colors.black54),
+              ),
+              const SizedBox(height: 48),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _onConcluir,
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  label: const Text('VOLTAR PARA O WHATSAPP', 
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF25D366), // Verde Oficial do WhatsApp
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMediaContent(SceneModel scene) {
+    if (scene.type == SceneType.imageText && scene.assetPath != null) {
+      return Image.asset(
+        scene.assetPath!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildMediaPlaceholder(scene.type),
+      );
+    }
+
+    if (scene.type == SceneType.audioText) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              onPressed: () => _toggleAudio(scene.assetPath),
+              icon: Icon(
+                _isAudioPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                size: 80,
+                color: Theme.of(context).primaryColor,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _isAudioPlaying ? 'Ouvindo orientação...' : 'Tocar orientação',
+              style: TextStyle(
+                color: Theme.of(context).primaryColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (scene.type == SceneType.videoText && scene.assetPath != null) {
+      // Registra o elemento de vídeo para o Flutter Web
+      final viewId = 'video-player-${scene.id}';
+      
+      // ignore: undefined_prefixed_name
+      ui_web.platformViewRegistry.registerViewFactory(viewId, (int viewId) {
+        final videoElement = html.VideoElement()
+          ..src = scene.assetPath!
+          ..controls = true
+          ..style.border = 'none'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          ..style.borderRadius = '20px';
+        return videoElement;
+      });
+
+      return HtmlElementView(viewType: viewId);
+    }
+    
+    return _buildMediaPlaceholder(scene.type);
+  }
+
+  Widget _buildMediaPlaceholder(SceneType type) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            _getIconForType(type),
+            size: 64,
+            color: Theme.of(context).primaryColor.withOpacity(0.3),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Mídia em breve',
+            style: TextStyle(
+              color: Theme.of(context).primaryColor.withOpacity(0.4),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getIconForType(SceneType type) {
+    switch (type) {
+      case SceneType.imageText:
+        return Icons.image;
+      case SceneType.audioText:
+        return Icons.audiotrack;
+      case SceneType.videoText:
+        return Icons.videocam;
+      default:
+        return Icons.text_fields;
+    }
+  }
+}
