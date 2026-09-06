@@ -15,6 +15,7 @@ class ContentService {
           title: jsonItem['title'],
           content: jsonItem['content'],
           assetPath: jsonItem['assetPath'],
+          caption: jsonItem['caption'], // Mapeando a legenda
           type: _parseSceneType(jsonItem['type']),
         );
       }).toList();

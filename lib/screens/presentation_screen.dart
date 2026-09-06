@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'dart:ui_web' as ui_web;
+// ignore: deprecated_member_use, avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 import '../models/scene_model.dart';
 import '../services/content_service.dart';
 import '../services/browser_service.dart';
+import '../widgets/marajoara_pattern_painter.dart';
 
 class PresentationScreen extends StatefulWidget {
   const PresentationScreen({super.key});
@@ -20,6 +23,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
   bool _isFinished = false;
   bool _isAudioPlaying = false;
   bool _isLoading = true;
+  bool _hasStarted = false; // Nova variável para controlar a tela de início
 
   @override
   void initState() {
@@ -32,6 +36,13 @@ class _PresentationScreenState extends State<PresentationScreen> {
     setState(() {
       _scenes = scenes;
       _isLoading = false;
+    });
+  }
+
+  void _startPresentation() {
+    _browserService.toggleFullScreen(); // Ativa tela cheia no clique
+    setState(() {
+      _hasStarted = true;
     });
   }
 
@@ -89,6 +100,10 @@ class _PresentationScreenState extends State<PresentationScreen> {
       );
     }
 
+    if (!_hasStarted) {
+      return _buildStartScreen();
+    }
+
     if (_isFinished) {
       return _buildFinishScreen();
     }
@@ -97,155 +112,195 @@ class _PresentationScreenState extends State<PresentationScreen> {
     final progress = (_currentIndex + 1) / _scenes!.length;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent, // Transparente para mostrar o padrão
         elevation: 0,
+        scrolledUnderElevation: 0,
         actions: [
           IconButton(
             onPressed: () => _browserService.toggleFullScreen(),
-            icon: const Icon(Icons.fullscreen, color: Colors.grey),
+            icon: const Icon(Icons.fullscreen, color: Color(0xFF2D5A27)),
           )
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Barra de Progresso Superior
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: Colors.grey[300],
-                  valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                  minHeight: 6,
-                ),
+      extendBodyBehindAppBar: true, // Faz o padrão subir até o topo
+      body: Stack(
+        children: [
+          // Camada 1: Padrão Marajoara de Fundo
+          Positioned.fill(
+            child: CustomPaint(
+              painter: MarajoaraPatternPainter(
+                color: const Color(0xFF2D5A27).withValues(alpha: 0.04), // Muito sutil
               ),
             ),
-            
-            // Área de Conteúdo
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 400),
-                transitionBuilder: (Widget child, Animation<double> animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0.05, 0),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: child,
+          ),
+          
+          // Camada 2: Conteúdo da Aplicação
+          SafeArea(
+            child: Column(
+              children: [
+                // Barra de Progresso Superior
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      backgroundColor: Colors.grey[300]?.withValues(alpha: 0.5) ?? Colors.grey.withValues(alpha: 0.2),
+                      valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+                      minHeight: 6,
                     ),
-                  );
-                },
-                child: SingleChildScrollView(
-                  key: ValueKey<int>(_currentIndex),
-                  padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 32.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        currentScene.title,
-                        style: Theme.of(context).textTheme.headlineLarge,
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        currentScene.content,
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 40),
-                      
-                      // Placeholder ou Mídia Real
-                      if (currentScene.type != SceneType.textOnly)
-                        Container(
-                          width: double.infinity,
-                          height: 240,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                            border: Border.all(color: const Color(0xFFE0E0E0)),
+                  ),
+                ),
+                
+                // Área de Conteúdo
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    transitionBuilder: (Widget child, Animation<double> animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0.05, 0),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: SingleChildScrollView(
+                      key: ValueKey<int>(_currentIndex),
+                      padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 32.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            currentScene.title,
+                            style: Theme.of(context).textTheme.headlineLarge,
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: _buildMediaContent(currentScene),
+                          const SizedBox(height: 24),
+                          MarkdownBody(
+                            data: currentScene.content,
+                            styleSheet: MarkdownStyleSheet(
+                              p: Theme.of(context).textTheme.bodyLarge,
+                              strong: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF2D5A27),
+                              ),
+                              listBullet: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                          ),
+                          const SizedBox(height: 40),
+                          
+                          // Placeholder ou Mídia Real
+                          if (currentScene.type != SceneType.textOnly)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: double.infinity,
+                                  height: 240,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.05),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                    border: Border.all(color: const Color(0xFFE0E0E0)),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: _buildMediaContent(currentScene),
+                                  ),
+                                ),
+                                if (currentScene.caption != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 12, left: 8),
+                                    child: Text(
+                                      currentScene.caption!,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontStyle: FontStyle.italic,
+                                        color: Colors.black45,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                
+                // Controles Inferiores
+                Container(
+                  padding: const EdgeInsets.all(24.0),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, -5),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Botão Voltar
+                      IconButton(
+                        onPressed: _currentIndex > 0 ? _previousScene : null,
+                        icon: const Icon(Icons.arrow_back_ios_new),
+                        color: Theme.of(context).primaryColor,
+                        iconSize: 28,
+                      ),
+                      
+                      // Indicador Numérico
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${_currentIndex + 1} / ${_scenes!.length}',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54),
+                        ),
+                      ),
+                      
+                      // Botão Próximo ou Finalizar
+                      ElevatedButton(
+                        onPressed: _currentIndex == _scenes!.length - 1 ? _onConcluir : _nextScene,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
+                        child: Text(
+                          _currentIndex == _scenes!.length - 1 ? 'Concluir' : 'Próximo',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ),
+              ],
             ),
-            
-            // Controles Inferiores
-            Container(
-              padding: const EdgeInsets.all(24.0),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Botão Voltar
-                  IconButton(
-                    onPressed: _currentIndex > 0 ? _previousScene : null,
-                    icon: const Icon(Icons.arrow_back_ios_new),
-                    color: Theme.of(context).primaryColor,
-                    iconSize: 28,
-                  ),
-                  
-                  // Indicador Numérico
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${_currentIndex + 1} / ${_scenes!.length}',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54),
-                    ),
-                  ),
-                  
-                  // Botão Próximo ou Finalizar
-                  ElevatedButton(
-                    onPressed: _currentIndex == _scenes!.length - 1 ? _onConcluir : _nextScene,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: Text(
-                      _currentIndex == _scenes!.length - 1 ? 'Concluir' : 'Próximo',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -253,41 +308,84 @@ class _PresentationScreenState extends State<PresentationScreen> {
   Widget _buildFinishScreen() {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.check_circle_outline, size: 100, color: Color(0xFF2D5A27)),
-              const SizedBox(height: 24),
-              Text(
-                'Tudo pronto!',
-                style: Theme.of(context).textTheme.headlineLarge,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: MarajoaraPatternPainter(
+                color: const Color(0xFF2D5A27).withValues(alpha: 0.04),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Você concluiu esta etapa da nossa comunicação. Clique no botão abaixo para retornar.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18, color: Colors.black54),
-              ),
-              const SizedBox(height: 48),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _onConcluir,
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  label: const Text('VOLTAR PARA O WHATSAPP', 
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF25D366), // Verde Oficial do WhatsApp
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.check_circle_outline, size: 100, color: Color(0xFF2D5A27)),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Tudo pronto!',
+                    style: Theme.of(context).textTheme.headlineLarge,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Você concluiu esta etapa da nossa comunicação. Clique no botão abaixo para retornar.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 48),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _onConcluir,
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      label: const Text('VOLTAR PARA O WHATSAPP', 
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366), 
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStartScreen() {
+    return Scaffold(
+      body: GestureDetector(
+        onTap: _startPresentation, // Inicia a apresentação ao tocar em qualquer lugar
+        behavior: HitTestBehavior.opaque, // Garante que o toque funcione em toda a área
+        child: Stack(
+          children: [
+            // Camada 1: Sua Imagem de Fundo (splash_bg.jpg)
+            // Agora você pode desenhar o botão diretamente nesta imagem
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/splash_bg.jpg',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: const Color(0xFF2D5A27),
+                    child: const Center(
+                      child: Text(
+                        'Toque para iniciar',
+                        style: TextStyle(color: Colors.white, fontSize: 20),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -358,13 +456,13 @@ class _PresentationScreenState extends State<PresentationScreen> {
           Icon(
             _getIconForType(type),
             size: 64,
-            color: Theme.of(context).primaryColor.withOpacity(0.3),
+            color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 12),
           Text(
             'Mídia em breve',
             style: TextStyle(
-              color: Theme.of(context).primaryColor.withOpacity(0.4),
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.4),
               fontWeight: FontWeight.bold,
             ),
           ),
