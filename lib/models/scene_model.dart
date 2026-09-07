@@ -3,6 +3,7 @@ enum SceneType {
   imageText,
   audioText,
   videoText,
+  intro, // Novo tipo
 }
 
 class SceneModel {
@@ -10,7 +11,9 @@ class SceneModel {
   final String title;
   final String content;
   final String? assetPath;
-  final String? caption; // Novo campo opcional
+  final String? imageUrl; // Novo campo para fotos externas
+  final String? mediaUrl; // Novo campo para vídeos externos
+  final String? caption;
   final SceneType type;
 
   const SceneModel({
@@ -18,6 +21,8 @@ class SceneModel {
     required this.title,
     required this.content,
     this.assetPath,
+    this.imageUrl,
+    this.mediaUrl,
     this.caption,
     required this.type,
   });

@@ -24,9 +24,25 @@ class BrowserService {
   /// Toca um áudio a partir de um caminho de asset.
   void playAudio(String assetPath, {Function? onEnded}) {
     stopAudio();
-    // No Flutter Web, assets ficam em 'assets/assets/...' em alguns builds, 
-    // mas o caminho relativo padrão geralmente funciona.
-    _audioElement = html.AudioElement(assetPath);
+    
+    // Técnica de Resiliência de Caminho para Flutter Web / GitHub Pages
+    // Tenta o caminho original e o caminho com o prefixo duplo do Flutter Web
+    String path1 = assetPath;
+    if (!path1.startsWith('assets/')) path1 = 'assets/$path1';
+    
+    String path2 = 'assets/$path1'; // Resulta em assets/assets/...
+
+    _audioElement = html.AudioElement();
+    
+    // Tenta o caminho 1, se der erro, tenta o caminho 2
+    _audioElement?.onError.listen((_) {
+      if (_audioElement?.src != path2) {
+        _audioElement?.src = path2;
+        _audioElement?.play();
+      }
+    });
+
+    _audioElement?.src = path1;
     _audioElement?.onEnded.listen((_) {
       if (onEnded != null) onEnded();
     });

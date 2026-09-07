@@ -1,0 +1,31 @@
+{
+  "id": "002",
+  "title": "Manejo de Sementes Tradicionais",
+  "description": "Como selecionar e guardar sementes para a próxima safra.",
+  "category": "Agricultura",
+  "version": "1.0",
+  "scenes": [
+    {
+      "id": "1",
+      "title": "A Importância das Sementes",
+      "content": "Guardar suas próprias sementes garante a **independência** da sua família e a saúde da plantação.\n\nNeste guia, você aprenderá:\n- Como selecionar os melhores frutos\n- O processo de secagem\n- Como armazenar contra umidade",
+      "type": "textOnly"
+    },
+    {
+      "id": "2",
+      "title": "Seleção no Campo",
+      "content": "Escolha sempre as plantas mais **fortes** e os frutos mais bonitos. \n\n*Evite sementes de plantas que ficaram doentes durante a safra.*",
+      "type": "imageText",
+      "assetPath": "assets/images/el_nino_explainer.jpg",
+      "caption": "Exemplo de fruto ideal para extração de sementes."
+    },
+    {
+      "id": "4",
+      "title": "Dica de Especialista",
+      "content": "Ouça esta dica sobre como testar se a semente já está seca o suficiente para ser guardada.",
+      "type": "audioText",
+      "assetPath": "assets/audio/orientacao_seca.mp3",
+      "caption": "Dica em áudio do técnico agrícola."
+    }
+  ]
+}

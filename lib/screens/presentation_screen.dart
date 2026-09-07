@@ -4,8 +4,10 @@ import 'dart:ui_web' as ui_web;
 // ignore: deprecated_member_use, avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 import '../models/scene_model.dart';
+import '../models/publication_model.dart';
 import '../services/content_service.dart';
 import '../services/browser_service.dart';
+import '../services/analytics_service.dart';
 import '../widgets/marajoara_pattern_painter.dart';
 
 class PresentationScreen extends StatefulWidget {
@@ -18,12 +20,12 @@ class PresentationScreen extends StatefulWidget {
 class _PresentationScreenState extends State<PresentationScreen> {
   final ContentService _contentService = ContentService();
   final BrowserService _browserService = BrowserService();
-  List<SceneModel>? _scenes;
+  Publication? _publication;
   int _currentIndex = 0;
   bool _isFinished = false;
   bool _isAudioPlaying = false;
   bool _isLoading = true;
-  bool _hasStarted = false; // Nova variável para controlar a tela de início
+  bool _hasStarted = false;
 
   @override
   void initState() {
@@ -32,32 +34,47 @@ class _PresentationScreenState extends State<PresentationScreen> {
   }
 
   Future<void> _loadContent() async {
-    final scenes = await _contentService.getScenes();
+    final publication = await _contentService.getPublication();
     setState(() {
-      _scenes = scenes;
+      _publication = publication;
       _isLoading = false;
     });
   }
 
   void _startPresentation() {
     _browserService.toggleFullScreen(); // Ativa tela cheia no clique
+    AnalyticsService.logStart(); // Auditoria: Início
     setState(() {
       _hasStarted = true;
     });
+    // Log da primeira cena
+    if (_publication != null && _publication!.scenes.isNotEmpty) {
+      final firstScene = _publication!.scenes[0];
+      AnalyticsService.logSceneView(firstScene.id, firstScene.title);
+    }
   }
 
   void _nextScene() {
     _browserService.stopAudio();
     setState(() => _isAudioPlaying = false);
     
-    if (_scenes != null && _currentIndex < _scenes!.length - 1) {
-      setState(() {
-        _currentIndex++;
-      });
-    } else {
-      setState(() {
-        _isFinished = true;
-      });
+    if (_publication != null) {
+      if (_currentIndex < _publication!.scenes.length - 1) {
+        setState(() {
+          _currentIndex++;
+        });
+        // Auditoria: Visualização da nova cena
+        final currentScene = _publication!.scenes[_currentIndex];
+        AnalyticsService.logSceneView(
+          currentScene.id, 
+          currentScene.title
+        );
+      } else {
+        // Se já está na última cena e clicou em Próximo/Concluir
+        setState(() {
+          _isFinished = true;
+        });
+      }
     }
   }
 
@@ -108,8 +125,8 @@ class _PresentationScreenState extends State<PresentationScreen> {
       return _buildFinishScreen();
     }
 
-    final currentScene = _scenes![_currentIndex];
-    final progress = (_currentIndex + 1) / _scenes!.length;
+    final currentScene = _publication!.scenes[_currentIndex];
+    final progress = (_currentIndex + 1) / _publication!.scenes.length;
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -195,8 +212,10 @@ class _PresentationScreenState extends State<PresentationScreen> {
                           ),
                           const SizedBox(height: 40),
                           
-                          // Placeholder ou Mídia Real
-                          if (currentScene.type != SceneType.textOnly)
+                          // Placeholder ou Mídia Real (Melhorado para links externos)
+                          if (currentScene.type != SceneType.textOnly || 
+                              currentScene.imageUrl != null || 
+                              currentScene.mediaUrl != null)
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -272,14 +291,14 @@ class _PresentationScreenState extends State<PresentationScreen> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          '${_currentIndex + 1} / ${_scenes!.length}',
+                          '${_currentIndex + 1} / ${_publication!.scenes.length}',
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54),
                         ),
                       ),
                       
                       // Botão Próximo ou Finalizar
                       ElevatedButton(
-                        onPressed: _currentIndex == _scenes!.length - 1 ? _onConcluir : _nextScene,
+                        onPressed: _nextScene, // Sempre chama _nextScene, que agora decide se avança ou finaliza
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(context).primaryColor,
                           foregroundColor: Colors.white,
@@ -290,7 +309,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
                           ),
                         ),
                         child: Text(
-                          _currentIndex == _scenes!.length - 1 ? 'Concluir' : 'Próximo',
+                          _currentIndex == _publication!.scenes.length - 1 ? 'Concluir' : 'Próximo',
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -323,29 +342,52 @@ class _PresentationScreenState extends State<PresentationScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.check_circle_outline, size: 100, color: Color(0xFF2D5A27)),
+                  const Icon(Icons.verified_user, size: 100, color: Color(0xFF2D5A27)),
                   const SizedBox(height: 24),
                   Text(
-                    'Tudo pronto!',
+                    'Missão Cumprida!',
                     style: Theme.of(context).textTheme.headlineLarge,
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Você concluiu esta etapa da nossa comunicação. Clique no botão abaixo para retornar.',
+                    'Você finalizou esta orientação. Que tal compartilhar este conhecimento com um vizinho ou parente?',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 18, color: Colors.black54),
                   ),
                   const SizedBox(height: 48),
+                  
+                  // Botão Compartilhar
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: _onConcluir,
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      label: const Text('VOLTAR PARA O WHATSAPP', 
+                      onPressed: () {
+                        // Lógica de compartilhar via WhatsApp
+                        final url = "https://wa.me/?text=Olha que interessante esse guia do Marajó Resiliente: https://mlameiranet.github.io/comunicacao_resiliente/";
+                        html.window.open(url, "_blank");
+                      },
+                      icon: const Icon(Icons.share, color: Colors.white),
+                      label: const Text('COMPARTILHAR NO WHATSAPP', 
                         style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF25D366), 
-                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        backgroundColor: const Color(0xFF0066CC), // Azul para diferenciar do concluir
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Botão Concluir
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _onConcluir,
+                      icon: const Icon(Icons.close, color: Color(0xFF25D366)),
+                      label: const Text('ENCERRAR E VOLTAR', 
+                        style: TextStyle(color: Color(0xFF2D5A27), fontWeight: FontWeight.bold)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF25D366), width: 2),
+                        padding: const EdgeInsets.symmetric(vertical: 18),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
@@ -392,11 +434,69 @@ class _PresentationScreenState extends State<PresentationScreen> {
   }
 
   Widget _buildMediaContent(SceneModel scene) {
+    // 1. Suporte para Fotos Externas (Links)
+    if (scene.imageUrl != null) {
+      return GestureDetector(
+        onTap: () => _showFullScreenImage(context, scene.imageUrl!, isNetwork: true),
+        child: Image.network(
+          scene.imageUrl!,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => _buildMediaPlaceholder(scene.type),
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return const Center(child: CircularProgressIndicator());
+          },
+        ),
+      );
+    }
+
+    // 2. Suporte para Vídeos Externos (YouTube)
+    if (scene.mediaUrl != null && scene.mediaUrl!.contains('youtube')) {
+      final viewId = 'youtube-${scene.id}';
+      final videoId = _extractYoutubeId(scene.mediaUrl!);
+      
+      // ignore: undefined_prefixed_name
+      ui_web.platformViewRegistry.registerViewFactory(viewId, (int viewId) {
+        final iframe = html.IFrameElement()
+          ..src = 'https://www.youtube.com/embed/$videoId'
+          ..style.border = 'none'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          ..allowFullscreen = true;
+        return iframe;
+      });
+
+      return HtmlElementView(viewType: viewId);
+    }
+
+    // 3. Suporte original para Assets Locais
     if (scene.type == SceneType.imageText && scene.assetPath != null) {
-      return Image.asset(
-        scene.assetPath!,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _buildMediaPlaceholder(scene.type),
+      final paths = scene.assetPath!.split(',');
+      
+      if (paths.length > 1) {
+        return PageView.builder(
+          itemCount: paths.length,
+          itemBuilder: (context, index) {
+            final imagePath = paths[index].trim();
+            return GestureDetector(
+              onTap: () => _showFullScreenImage(context, imagePath),
+              child: Image.asset(
+                imagePath,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => _buildMediaPlaceholder(scene.type),
+              ),
+            );
+          },
+        );
+      }
+
+      return GestureDetector(
+        onTap: () => _showFullScreenImage(context, scene.assetPath!),
+        child: Image.asset(
+          scene.assetPath!,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => _buildMediaPlaceholder(scene.type),
+        ),
       );
     }
 
@@ -427,17 +527,22 @@ class _PresentationScreenState extends State<PresentationScreen> {
     }
 
     if (scene.type == SceneType.videoText && scene.assetPath != null) {
-      // Registra o elemento de vídeo para o Flutter Web
       final viewId = 'video-player-${scene.id}';
+      String videoPath = scene.assetPath!;
+      if (!videoPath.startsWith('assets/')) {
+        videoPath = 'assets/$videoPath';
+      }
+      final String finalVideoPath = 'assets/$videoPath';
       
       // ignore: undefined_prefixed_name
       ui_web.platformViewRegistry.registerViewFactory(viewId, (int viewId) {
         final videoElement = html.VideoElement()
-          ..src = scene.assetPath!
+          ..src = finalVideoPath
           ..controls = true
           ..style.border = 'none'
           ..style.width = '100%'
           ..style.height = '100%'
+          ..style.objectFit = 'contain'
           ..style.borderRadius = '20px';
         return videoElement;
       });
@@ -446,6 +551,56 @@ class _PresentationScreenState extends State<PresentationScreen> {
     }
     
     return _buildMediaPlaceholder(scene.type);
+  }
+
+  String _extractYoutubeId(String url) {
+    // Shorts: youtube.com/shorts/ID
+    if (url.contains('shorts/')) {
+      return url.split('shorts/').last.split('?').first;
+    }
+    // Mobile/Short: youtu.be/ID
+    if (url.contains('youtu.be/')) {
+      return url.split('youtu.be/').last.split('?').first;
+    }
+    // Standard: youtube.com/watch?v=ID
+    if (url.contains('v=')) {
+      return url.split('v=').last.split('&').first;
+    }
+    return '';
+  }
+
+  void _showFullScreenImage(BuildContext context, String imagePath, {bool isNetwork = false}) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                panEnabled: true,
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: isNetwork 
+                  ? Image.network(imagePath, fit: BoxFit.contain)
+                  : Image.asset(imagePath, fit: BoxFit.contain),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: CircleAvatar(
+                backgroundColor: Colors.black54,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildMediaPlaceholder(SceneType type) {
@@ -471,6 +626,41 @@ class _PresentationScreenState extends State<PresentationScreen> {
     );
   }
 
+  void _showFullScreenImage(BuildContext context, String imagePath) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                panEnabled: true,
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.asset(
+                  imagePath,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: CircleAvatar(
+                backgroundColor: Colors.black54,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   IconData _getIconForType(SceneType type) {
     switch (type) {
       case SceneType.imageText:
@@ -479,6 +669,8 @@ class _PresentationScreenState extends State<PresentationScreen> {
         return Icons.audiotrack;
       case SceneType.videoText:
         return Icons.videocam;
+      case SceneType.intro:
+        return Icons.info_outline;
       default:
         return Icons.text_fields;
     }

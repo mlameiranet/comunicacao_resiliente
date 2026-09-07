@@ -29,8 +29,18 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>comunicacao_resiliente</title>
+  <title>Marajó Resiliente</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Auditoria Silenciosa (Google Analytics) -->
+  <!-- Substitua 'G-XXXXXXX' pelo seu ID real quando tiver um -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-XXXXXXX', { 'send_page_view': false }); // Evita duplicidade com o Flutter
+  </script>
 </head>
 <body>
   <!--
