@@ -21,7 +21,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
   final ContentService _contentService = ContentService();
   final BrowserService _browserService = BrowserService();
   Publication? _publication;
-  int _currentIndex = 0;
+  int _currentIndex = -1; // Inicia em -1 para mostrar a capa da publicação primeiro
   bool _isFinished = false;
   bool _isAudioPlaying = false;
   bool _isLoading = true;
@@ -125,8 +125,18 @@ class _PresentationScreenState extends State<PresentationScreen> {
       return _buildFinishScreen();
     }
 
-    final currentScene = _publication!.scenes[_currentIndex];
-    final progress = (_currentIndex + 1) / _publication!.scenes.length;
+    // Lógica de Capa: Se for o ID 0 (virtual), mostra dados da publicação
+    final currentScene = _currentIndex == -1 
+      ? SceneModel(
+          id: _publication!.id, 
+          title: _publication!.title, 
+          content: _publication!.description, 
+          type: SceneType.textOnly
+        )
+      : _publication!.scenes[_currentIndex];
+
+    final totalSteps = _publication!.scenes.length + 1; // +1 para a capa
+    final progress = (_currentIndex + 2) / totalSteps;
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -194,9 +204,14 @@ class _PresentationScreenState extends State<PresentationScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            currentScene.title,
-                            style: Theme.of(context).textTheme.headlineLarge,
+                          MarkdownBody(
+                            data: currentScene.title,
+                            styleSheet: MarkdownStyleSheet(
+                              p: Theme.of(context).textTheme.headlineLarge,
+                              strong: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                color: const Color(0xFF2D5A27),
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 24),
                           MarkdownBody(
@@ -291,14 +306,14 @@ class _PresentationScreenState extends State<PresentationScreen> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          '${_currentIndex + 1} / ${_publication!.scenes.length}',
+                          '${_currentIndex + 2} / ${_publication!.scenes.length + 1}',
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54),
                         ),
                       ),
                       
                       // Botão Próximo ou Finalizar
                       ElevatedButton(
-                        onPressed: _nextScene, // Sempre chama _nextScene, que agora decide se avança ou finaliza
+                        onPressed: _nextScene, 
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(context).primaryColor,
                           foregroundColor: Colors.white,
@@ -434,8 +449,8 @@ class _PresentationScreenState extends State<PresentationScreen> {
   }
 
   Widget _buildMediaContent(SceneModel scene) {
-    // 1. Suporte para Fotos Externas (Links)
-    if (scene.imageUrl != null) {
+    // 1. Suporte para Fotos Externas (Links) - PRIORIDADE
+    if (scene.imageUrl != null && scene.imageUrl!.isNotEmpty) {
       return GestureDetector(
         onTap: () => _showFullScreenImage(context, scene.imageUrl!, isNetwork: true),
         child: Image.network(
@@ -451,14 +466,14 @@ class _PresentationScreenState extends State<PresentationScreen> {
     }
 
     // 2. Suporte para Vídeos Externos (YouTube)
-    if (scene.mediaUrl != null && scene.mediaUrl!.contains('youtube')) {
+    if (scene.mediaUrl != null && (scene.mediaUrl!.contains('youtube') || scene.mediaUrl!.contains('youtu.be'))) {
       final viewId = 'youtube-${scene.id}';
       final videoId = _extractYoutubeId(scene.mediaUrl!);
       
       // ignore: undefined_prefixed_name
       ui_web.platformViewRegistry.registerViewFactory(viewId, (int viewId) {
         final iframe = html.IFrameElement()
-          ..src = 'https://www.youtube.com/embed/$videoId'
+          ..src = 'https://www.youtube.com/embed/$videoId?rel=0&modestbranding=1'
           ..style.border = 'none'
           ..style.width = '100%'
           ..style.height = '100%'
@@ -466,7 +481,21 @@ class _PresentationScreenState extends State<PresentationScreen> {
         return iframe;
       });
 
-      return HtmlElementView(viewType: viewId);
+      return Column(
+        children: [
+          Expanded(child: HtmlElementView(viewType: viewId)),
+          Container(
+            width: double.infinity,
+            color: Colors.black.withValues(alpha: 0.1),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: const Text(
+              'Dica: Use os controles do vídeo para tela cheia.\nToque em "Próximo" para continuar.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      );
     }
 
     // 3. Suporte original para Assets Locais
@@ -622,41 +651,6 @@ class _PresentationScreenState extends State<PresentationScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showFullScreenImage(BuildContext context, String imagePath) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog.fullscreen(
-        backgroundColor: Colors.black,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: InteractiveViewer(
-                panEnabled: true,
-                minScale: 0.5,
-                maxScale: 4.0,
-                child: Image.asset(
-                  imagePath,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-            Positioned(
-              top: 40,
-              right: 20,
-              child: CircleAvatar(
-                backgroundColor: Colors.black54,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
