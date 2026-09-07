@@ -20,12 +20,14 @@ class PresentationScreen extends StatefulWidget {
 class _PresentationScreenState extends State<PresentationScreen> {
   final ContentService _contentService = ContentService();
   final BrowserService _browserService = BrowserService();
+  final ScrollController _scrollController = ScrollController(); // Novo controlador
   Publication? _publication;
-  int _currentIndex = -1; // Inicia em -1 para mostrar a capa da publicação primeiro
+  int _currentIndex = -1;
   bool _isFinished = false;
   bool _isAudioPlaying = false;
   bool _isLoading = true;
   bool _hasStarted = false;
+  bool _showScrollHint = false; // Controla visibilidade da seta
 
   @override
   void initState() {
@@ -56,7 +58,10 @@ class _PresentationScreenState extends State<PresentationScreen> {
 
   void _nextScene() {
     _browserService.stopAudio();
-    setState(() => _isAudioPlaying = false);
+    setState(() {
+      _isAudioPlaying = false;
+      _showScrollHint = false;
+    });
     
     if (_publication != null) {
       if (_currentIndex < _publication!.scenes.length - 1) {
@@ -65,12 +70,9 @@ class _PresentationScreenState extends State<PresentationScreen> {
         });
         // Auditoria: Visualização da nova cena
         final currentScene = _publication!.scenes[_currentIndex];
-        AnalyticsService.logSceneView(
-          currentScene.id, 
-          currentScene.title
-        );
+        AnalyticsService.logSceneView(currentScene.id, currentScene.title);
+        WidgetsBinding.instance.addPostFrameCallback((_) => _checkScroll());
       } else {
-        // Se já está na última cena e clicou em Próximo/Concluir
         setState(() {
           _isFinished = true;
         });
@@ -80,13 +82,24 @@ class _PresentationScreenState extends State<PresentationScreen> {
 
   void _previousScene() {
     _browserService.stopAudio();
-    setState(() => _isAudioPlaying = false);
+    setState(() {
+      _isAudioPlaying = false;
+      _showScrollHint = false;
+    });
     
-    if (_currentIndex > 0) {
+    if (_currentIndex > -1) { // Permite voltar para a capa
       setState(() {
         _currentIndex--;
         _isFinished = false;
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkScroll());
+    }
+  }
+
+  void _checkScroll() {
+    if (_scrollController.hasClients) {
+      final isScrollable = _scrollController.position.maxScrollExtent > 30; // Margem de segurança
+      setState(() => _showScrollHint = isScrollable);
     }
   }
 
@@ -197,79 +210,103 @@ class _PresentationScreenState extends State<PresentationScreen> {
                         ),
                       );
                     },
-                    child: SingleChildScrollView(
-                      key: ValueKey<int>(_currentIndex),
-                      padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 32.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          MarkdownBody(
-                            data: currentScene.title,
-                            styleSheet: MarkdownStyleSheet(
-                              p: Theme.of(context).textTheme.headlineLarge,
-                              strong: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                                color: const Color(0xFF2D5A27),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          MarkdownBody(
-                            data: currentScene.content,
-                            styleSheet: MarkdownStyleSheet(
-                              p: Theme.of(context).textTheme.bodyLarge,
-                              strong: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF2D5A27),
-                              ),
-                              listBullet: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                          ),
-                          const SizedBox(height: 40),
-                          
-                          // Placeholder ou Mídia Real (Melhorado para links externos)
-                          if (currentScene.type != SceneType.textOnly || 
-                              currentScene.imageUrl != null || 
-                              currentScene.mediaUrl != null)
-                            Column(
+                    child: Stack(
+                      children: [
+                        NotificationListener<ScrollNotification>(
+                          onNotification: (notification) {
+                            if (notification.metrics.atEdge && notification.metrics.pixels > 0) {
+                              if (_showScrollHint) setState(() => _showScrollHint = false);
+                            }
+                            return false;
+                          },
+                          child: SingleChildScrollView(
+                            controller: _scrollController,
+                            key: ValueKey<int>(_currentIndex),
+                            padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 32.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  width: double.infinity,
-                                  height: 240,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.05),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                    border: Border.all(color: const Color(0xFFE0E0E0)),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: _buildMediaContent(currentScene),
-                                  ),
-                                ),
-                                if (currentScene.caption != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 12, left: 8),
-                                    child: Text(
-                                      currentScene.caption!,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontStyle: FontStyle.italic,
-                                        color: Colors.black45,
-                                      ),
+                                MarkdownBody(
+                                  data: currentScene.title,
+                                  styleSheet: MarkdownStyleSheet(
+                                    p: Theme.of(context).textTheme.headlineLarge,
+                                    strong: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                      color: const Color(0xFF2D5A27),
                                     ),
                                   ),
+                                ),
+                                const SizedBox(height: 24),
+                                MarkdownBody(
+                                  data: currentScene.content,
+                                  styleSheet: MarkdownStyleSheet(
+                                    p: Theme.of(context).textTheme.bodyLarge,
+                                    strong: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFF2D5A27),
+                                    ),
+                                    listBullet: Theme.of(context).textTheme.bodyLarge,
+                                  ),
+                                ),
+                                const SizedBox(height: 40),
+                                
+                                // Placeholder ou Mídia Real (Melhorado para links externos)
+                                if (currentScene.type != SceneType.textOnly || 
+                                    currentScene.imageUrl != null || 
+                                    currentScene.mediaUrl != null)
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: double.infinity,
+                                        height: (currentScene.mediaUrl != null) ? 620 : 400, // Ajuste essencial para vídeo 9:16
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(20),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.05),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
+                                          border: Border.all(color: const Color(0xFFE0E0E0)),
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(20),
+                                          child: _buildMediaContent(currentScene),
+                                        ),
+                                      ),
+                                      if (currentScene.caption != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 12, left: 8),
+                                          child: Text(
+                                            currentScene.caption!,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontStyle: FontStyle.italic,
+                                              color: Colors.black45,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                const SizedBox(height: 80), // Espaço para não cobrir a seta
                               ],
                             ),
-                        ],
-                      ),
+                          ),
+                        ),
+                        // Indicador de "Role para baixo" (Cursor Inteligente)
+                        if (_showScrollHint)
+                          Positioned(
+                            bottom: 10,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: _ScrollIndicator(),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -365,7 +402,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Você finalizou esta orientação. Que tal compartilhar este conhecimento com um vizinho ou parente?',
+                    'Você finalizou esta orientação. Que tal compartilhar este conhecimento com outro beneficiário, vizinho ou parente?',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 18, color: Colors.black54),
                   ),
@@ -449,84 +486,59 @@ class _PresentationScreenState extends State<PresentationScreen> {
   }
 
   Widget _buildMediaContent(SceneModel scene) {
-    // 1. Suporte para Fotos Externas (Links) - PRIORIDADE
-    if (scene.imageUrl != null && scene.imageUrl!.isNotEmpty) {
-      return GestureDetector(
-        onTap: () => _showFullScreenImage(context, scene.imageUrl!, isNetwork: true),
-        child: Image.network(
-          scene.imageUrl!,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) => _buildMediaPlaceholder(scene.type),
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return const Center(child: CircularProgressIndicator());
-          },
-        ),
-      );
-    }
+    // 1. Identifica se a fonte é Internet ou Local
+    final String? primaryPath = scene.imageUrl ?? scene.assetPath;
+    final bool isNetwork = primaryPath != null && primaryPath.startsWith('http');
 
-    // 2. Suporte para Vídeos Externos (YouTube)
-    if (scene.mediaUrl != null && (scene.mediaUrl!.contains('youtube') || scene.mediaUrl!.contains('youtu.be'))) {
-      final viewId = 'youtube-${scene.id}';
-      final videoId = _extractYoutubeId(scene.mediaUrl!);
-      
-      // ignore: undefined_prefixed_name
-      ui_web.platformViewRegistry.registerViewFactory(viewId, (int viewId) {
-        final iframe = html.IFrameElement()
-          ..src = 'https://www.youtube.com/embed/$videoId?rel=0&modestbranding=1'
-          ..style.border = 'none'
-          ..style.width = '100%'
-          ..style.height = '100%'
-          ..allowFullscreen = true;
-        return iframe;
-      });
-
-      return Column(
-        children: [
-          Expanded(child: HtmlElementView(viewType: viewId)),
-          Container(
-            width: double.infinity,
-            color: Colors.black.withValues(alpha: 0.1),
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: const Text(
-              'Dica: Use os controles do vídeo para tela cheia.\nToque em "Próximo" para continuar.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      );
-    }
-
-    // 3. Suporte original para Assets Locais
-    if (scene.type == SceneType.imageText && scene.assetPath != null) {
-      final paths = scene.assetPath!.split(',');
-      
-      if (paths.length > 1) {
+    // Prioridade 1: Fotos (Internet ou Local)
+    if (primaryPath != null && (scene.type == SceneType.imageText || isNetwork)) {
+      if (!isNetwork && primaryPath.contains(',')) {
+        // Lógica de Carrossel Local
+        final paths = primaryPath.split(',');
         return PageView.builder(
           itemCount: paths.length,
           itemBuilder: (context, index) {
-            final imagePath = paths[index].trim();
+            final path = paths[index].trim();
             return GestureDetector(
-              onTap: () => _showFullScreenImage(context, imagePath),
-              child: Image.asset(
-                imagePath,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => _buildMediaPlaceholder(scene.type),
-              ),
+              onTap: () => _showFullScreenImage(context, path, isNetwork: false),
+              child: Image.asset(path, fit: BoxFit.contain, errorBuilder: (c, e, s) => _buildMediaPlaceholder(scene.type)),
             );
           },
         );
       }
 
       return GestureDetector(
-        onTap: () => _showFullScreenImage(context, scene.assetPath!),
-        child: Image.asset(
-          scene.assetPath!,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) => _buildMediaPlaceholder(scene.type),
-        ),
+        onTap: () => _showFullScreenImage(context, primaryPath, isNetwork: isNetwork),
+        child: isNetwork 
+          ? Image.network(
+              primaryPath, 
+              fit: BoxFit.contain, 
+              errorBuilder: (c, e, s) => _buildMediaPlaceholder(scene.type),
+              loadingBuilder: (c, child, p) => p == null ? child : const Center(child: CircularProgressIndicator()),
+            )
+          : Image.asset(primaryPath, fit: BoxFit.contain, errorBuilder: (c, e, s) => _buildMediaPlaceholder(scene.type)),
       );
+    }
+
+    // Prioridade 2: Vídeos Externos (YouTube)
+    final String? videoUrl = scene.mediaUrl ?? (isNetwork ? primaryPath : null);
+    if (videoUrl != null && (videoUrl.contains('youtube') || videoUrl.contains('youtu.be'))) {
+      final viewId = 'youtube-${scene.id}';
+      final videoId = _extractYoutubeId(videoUrl);
+      
+      // ignore: undefined_prefixed_name
+      ui_web.platformViewRegistry.registerViewFactory(viewId, (int viewId) {
+        final iframe = html.IFrameElement()
+          ..src = 'https://www.youtube.com/embed/$videoId?rel=0&modestbranding=1&autoplay=0'
+          ..style.border = 'none'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          ..style.backgroundColor = 'black'
+          ..allowFullscreen = true;
+        return iframe;
+      });
+
+      return HtmlElementView(viewType: viewId);
     }
 
     if (scene.type == SceneType.audioText) {
@@ -668,5 +680,55 @@ class _PresentationScreenState extends State<PresentationScreen> {
       default:
         return Icons.text_fields;
     }
+  }
+}
+
+class _ScrollIndicator extends StatefulWidget {
+  @override
+  State<_ScrollIndicator> createState() => _ScrollIndicatorState();
+}
+
+class _ScrollIndicatorState extends State<_ScrollIndicator> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0, end: 10).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: 0.6,
+          child: Transform.translate(
+            offset: Offset(0, _animation.value),
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Role para ver mais', style: TextStyle(fontSize: 10, color: Colors.black38)),
+                Icon(Icons.keyboard_arrow_down, size: 24, color: Colors.black26),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }
