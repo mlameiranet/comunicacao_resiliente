@@ -1,0 +1,58 @@
+{
+  "id": "001",
+  "title": "🌿 **Resiliência Climática no Marajó**",
+  "description": "Uma introdução prática sobre **adaptação**, **manejo sustentável** e o **protagonismo comunitário** frente aos desafios climáticos no território marajoara.",
+  "category": "Sustentabilidade",
+  "version": "1.0.0",
+  "credits": [
+    "Produção: Equipe Marajó Resiliente",
+    "Edição Técnica: IBel Marajó",
+    "Mídias e Design: Central de Resiliência",
+    "Apoio: Comunidades Tradicionais"
+  ],
+  "scenes": [
+    {
+      "id": "1",
+      "title": "🌊 **O Desafio do Território Marajoara**",
+      "content": "O **Arquipélago do Marajó** possui uma dinâmica fluviomarítima única. Com o avanço das mudanças globais, lidar com a **variação no regime de chuvas**, a elevação das águas e **eventos extremos** exige soluções de **adaptação contínua** para proteger vidas e ecossistemas.",
+      "type": "imageText",
+      "assetPath": "assets/images/Mapa_MARAJOANDO.jpg",
+      "caption": "Mapa e suas paisagens das águas e vegetação no arquipélago do Marajó."
+    },
+    {
+      "id": "2",
+      "title": "🌱 **Sistemas Agroflorestais e Solo**",
+      "content": "A transição para **Sistemas Agroflorestais (SAFs)** e o **manejo adequado do solo** são pilares fundamentais no campo. Essas práticas recuperam áreas degradadas, aumentam a **segurança alimentar** da agricultura familiar e garantem renda com a floresta em pé.\n\n*Deslize para o lado para ver mais fotos do manejo.*",
+      "type": "imageText",
+      "assetPath": "assets/images/Carrossel_001/Agrofloresta001.jpg, assets/images/Carrossel_001/Agrofloresta002.jpg, assets/images/Carrossel_001/Agrofloresta003.png, assets/images/Carrossel_001/Agrofloresta004.png, assets/images/Carrossel_001/Agrofloresta005.jpg",
+      "caption": "Manejo de área agroflorestal (Galeria)",
+      "image_alt": "Foto: Wikipédia / Reprodução: Redes Sociais."
+    },
+    {
+      "id": "3",
+      "title": "💧 **Gestão de Águas e Produção Sustentável**",
+      "content": "Conviver com o ritmo das marés exige **tecnologia social** e planejamento. Promover **arranjos produtivos resilientes** fortalece as cadeias locais, reduz a vulnerabilidade às secas ou cheias severas e preserva a biodiversidade aquática e terrestre.",
+      "type": "imageText",
+      "assetPath": "assets/images/Manejo-Florestal-Sustentavel-Preservacao-e-Desenvolvimento-1200x675.jpg",
+      "image_alt": "Práticas adaptativas com foco na resiliência hídrica.",
+      "caption": "Foto: Blog Geoambiental"
+    },
+    {
+      "id": "4",
+      "title": "👥 **Protagonismo e Saberes Locais**",
+      "content": "A verdadeira transformação acontece pela integração entre a **ciência** e a **sabedoria das comunidades tradicionais**, extrativistas e agricultores. A escuta ativa e o **fortalecimento comunitário** são o coração de qualquer estratégia de longo prazo.",
+      "type": "textOnly",
+      "media": {
+        "type": "youtube_embed",
+        "url": "https://youtube.com/shorts/_w1NuPB73Jk?si=jiViIPBaEkD9IbhR",
+        "caption": "A voz do território ecoando pelo mundo."
+      }
+    },
+    {
+      "id": "5",
+      "title": "💚 **O Caminho para um Marajó Resiliente**",
+      "content": "Construir um **Marajó resiliente** é conectar conservação ambiental, valorização social e inovação no campo. Um modelo em que a **sustentabilidade** e o bem-estar da população caminham juntos.",
+      "type": "textOnly"
+    }
+  ]
+}

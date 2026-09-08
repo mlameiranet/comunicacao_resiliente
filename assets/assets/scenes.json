@@ -1,0 +1,47 @@
+{
+  "id": "001",
+  "title": "El Niño",
+  "description": "Orientações sobre El Niño e resiliência climática",
+  "category": "Clima",
+  "version": "1.0",
+  "scenes": [
+    {
+      "id": "1",
+      "title": "Bem-vindo ao Marajó Resiliente",
+      "content": "Este é um guia interativo para ajudar sua família a se preparar para as mudanças no clima.\n\nToque em **'Próximo'** para começar a sua jornada de conhecimento.",
+      "type": "textOnly"
+    },
+    {
+      "id": "2",
+      "title": "O que é o El Niño?",
+      "content": "O El Niño é o aquecimento das águas do Oceano Pacífico. Isso muda o regime de chuvas na nossa região:\n\n- **Secas** mais prolongadas\n- **Calor** intenso\n- **Mudança** no nível dos rios",
+      "type": "imageText",
+      "assetPath": "assets/images/el_nino_explainer.jpg",
+      "caption": "Esquema ilustrativo do aquecimento das águas."
+    },
+    {
+      "id": "3",
+      "title": "Dicas de Resiliência",
+      "content": "Veja exemplos de como proteger sua plantação e sua casa. Você pode **deslizar as fotos** para o lado para ver mais detalhes.",
+      "type": "imageText",
+      "assetPath": "assets/images/el_nino_explainer.jpg, assets/images/splash_bg.jpg",
+      "caption": "Arraste para o lado para ver todas as fotos."
+    },
+    {
+      "id": "4",
+      "title": "Mensagem da Equipe",
+      "content": "Ouça agora esta orientação importante sobre o **manejo da água** durante o período de seca severa.",
+      "type": "audioText",
+      "assetPath": "assets/audio/orientacao_seca.mp3",
+      "caption": "Toque no botão central para ouvir."
+    },
+    {
+      "id": "5",
+      "title": "Demonstração Prática",
+      "content": "Assista ao vídeo e veja como é simples realizar a **cobertura morta** no solo para manter a umidade.",
+      "type": "videoText",
+      "assetPath": "assets/video/cobertura_solo.mp4",
+      "caption": "Vídeo: Técnica de cobertura morta passo a passo."
+    }
+  ]
+}
